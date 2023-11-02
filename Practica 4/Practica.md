@@ -9,7 +9,7 @@ Ejercicio 1
 
 - Cliente(-idCliente-, nombre, apellido, DNI, telefono, direccion)
 - Factura (-nroTicket-, total, fecha, hora,idCliente (fk))
-- Detalle(-nroTicket, idProducto-, cantidad, preciounitario)
+- Detalle(-nroTicket-, idProducto-, cantidad, preciounitario)
 - Producto(-idProducto-, descripcion, precio, nombreP, stock)
 
 1. Listar datos personales de clientes cuyo apellido comience con el string ‘Pe’. Ordenar por
