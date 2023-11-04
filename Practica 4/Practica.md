@@ -170,18 +170,9 @@ haya comprado el producto ´Z´.
             INNER JOIN Producto p ON(d.idCliente = p.idCliente)
         WHERE (((nombre="Jorge") AND (apellido="Perez")) AND p.nombreP = "Z")
 ~~~
+
 ~~~sql
     /*OPCION 2*/
-    SELECT f.nroTicket, f.total, f.fecha, f.hora
-    FROM Facturas f 
-    INNER JOIN Cliente c ON (f.idCliente = c.idCliente)
-    LEFT JOIN Detalle d ON (f.nroTicket = d.nroTicket)
-    LEFT JOIN Producto p ON (d.idProducto = p.idProducto)
-    WHERE (c.nombre = "Jorge" AND c.apellido = "Pérez" AND p.nombreP != "Z" OR p.nombreP IS NULL)
-
-~~~
-~~~sql
-    /*OPCION 3*/
     SELECT f.nroTicket, total, fecha, hora
     FROM Producto p 
     INNER JOIN Detalle d ON (p.idProducto = d.idProducto)
@@ -262,8 +253,7 @@ de mail que termine con ‘@jmail.com’.
 
 ~~~
 
-4. Listar datos personales de clientes que viajaron solo con destino a la ciudad de ‘Coronel
-Brandsen’
+4. Listar datos personales de clientes que viajaron solo con destino a la ciudad de ‘Coronel Brandsen’
 
 
 ~~~sql
@@ -602,24 +592,54 @@ más 100 horas de duración. Ordenar por DNI
 al curso con nombre “Diseño de Bases de Datos” en 2019.
 ~~~sql
 
-   
+   SELECT a.DNI,p.Genero,p.apellido,p.nombre,p.Fecha_Nacimiento
+   FROM FROM PERSONA p INNER JOIN ALUMNO a ON (p.DNI = a.DNI)
+   INNER JOIN ALUMNO-CURSO ac ON (pro.DNI = ac.DNI)
+   INNER JOIN CURSO c ON (pc.Cod_Curso = c.Cod_Curso)
+   WHERE (c.nombre ="Diseño de Base de Datos" and ac.Año = "2019")
     
 
 ~~~
 4. Listar el DNI, Apellido, Nombre y Calificación de aquellos alumnos que obtuvieron una
-calificación superior a 9 en los cursos que dicta el profesor “Juan Garcia”. Dicho listado
-deberá estar ordenado por Apellido.
+calificación superior a 9 en los cursos que dicta el profesor “Juan Garcia”. Dicho listado deberá estar ordenado por Apellido.
+
 ~~~sql
 
-   
+    SELECT a.DNI, p.Apellido, p.Nombre, ac.Calificacion
+    FROM PERSONA p
+    NATURAL JOIN ALUMNO a
+    NATURAL JOIN ALUMNO_CURSO ac
+    NATURAL JOIN PROFESOR_CURSO pc
+    NATURAL JOIN PROFESOR prof
+    NATURAL JOIN PERSONA p2
+    WHERE (ac.Calificacion > 9 AND p2.Nombre = 'Juan' AND p2.Apellido = 'Garcia')
+    ORDER BY p.Apellido;
+
     
-
 ~~~
-5. Listar el DNI, Apellido, Nombre y Matrícula de aquellos profesores que posean más de 3
-títulos. Dicho listado deberá estar ordenado por Apellido y Nombre.
+
 ~~~sql
 
-   
+    SELECT a.DNI,p.Apellido,p.Nombre,
+    FROM PERSONA p INNER JOIN ALUMNO a ON (p.DNI = a.DNI)
+    INNER JOIN ALUMNO-CURSO ac ON (pro.DNI = ac.DNI)
+    INNER JOIN PROFESOR-CURSO pc ON(ac.Cod_Curso = pc.Cod_Curso)
+    INNER JOIN PROFESOR prof ON (pc.DNI = prof.DNI)
+    INNER JOIN PERSONA p2 ON (prof.DNI = p2.DNI)
+    WHERE(ac.Calificacion >= 9 and p2.nombre = "Juan" and p2.Apellido = "Garcia")
+    ORDER BY p.apellido
+    
+~~~
+5. Listar el DNI, Apellido, Nombre y Matrícula de aquellos profesores que posean más de 3 títulos. Dicho listado deberá estar ordenado por Apellido y Nombre.
+~~~sql
+
+   SELECT p.DNI,p.Apellido,p.Nombre,p.Matricula
+   FROM PERSONA p 
+   NATURAL JOIN PROFESOR pro 
+   NATURAL JOIN TITULO-PROFESOR tp
+   GROUP BY p.DNI, per.Apellido, per.Nombre, p.Matricula
+   HAVING (COUNT(*)>3)
+   ORDER BY per.Apellido, per.Nombre
     
 
 ~~~
@@ -629,28 +649,70 @@ cursos que dicta.
 ~~~sql
 
    
-    
+    SELECT  p.DNI,p.Apellido,p.nombre, SUM(c.Duracion),AVG(c.Duracion)
+    FROM PROFESOR p 
+    INNER JOIN PERSONA per ON (p.DNI = per.DNI)
+    INNER JOIN PROFESOR-CURSO pc ON(p.DNI = pc.DNI)
+    INNER JOIN CURSO c ON (pc.Cod_Curso = c.Cod_Curso)
+    GROUP BY p.DNI,p.Apellido,p.nombre
 
 ~~~
 7. Listar Nombre, Descripción del curso que posea más alumnos inscriptos y del que posea
 menos alumnos inscriptos durante 2019.
 ~~~sql
 
-   
+    (SELECT a.Nombre,a.Descripcion
+    FROM CURSO c NATURAL JOIN ALUMNO-CURSO ac
+    GROUP BY a.Nombre,a.Descripcion
+    HAVING (COUNT(*) >= ALL (
+            SELECT COUNT(*)  
+            FROM ALUMNO-CURSO
+            WHERE Año = "2019"
+            GROUP BY Cod_Curso
+            )
+        )
+    ) UNION (
+        SELECT a.Nombre,a.Descripcion
+        FROM CURSO c NATURAL JOIN ALUMNO-CURSO ac
+        GROUP BY a.Nombre,a.Descripcion
+        HAVING (COUNT(*) <= ALL (
+            SELECT COUNT(*)  
+            FROM ALUMNO-CURSO
+            WHERE Año = "2019"
+            GROUP BY Cod_Curso
+            )
+        )   
+    )
     
-
 ~~~
-8. Listar el DNI, Apellido, Nombre, Legajo de alumnos que realizaron cursos con nombre
-conteniendo el string ‘BD’ durante 2018 pero no realizaron ningún curso durante 2019.
+
+8. Listar el DNI, Apellido, Nombre, Legajo de alumnos que realizaron cursos con nombre conteniendo el string ‘BD’ durante 2018 pero no realizaron ningún curso durante 2019.
 ~~~sql
 
-   
-    
+    SELECT a.DNI,a.apellido,a.Nombre,a.Legajo
+    FROM PERSONA p 
+    INNER JOIN ALUMNO a ON (p.DNI = a.DNI)
+    INNER JOIN ALUMNO-CURSO ac ON (a.DNI = ac.DNI)
+    INNER JOIN CURSO c ON (ac.Cod_Curso = c.Cod_Curso)
+    WHERE(c.nombre LIKE %BD% and ac.Año = "2018")
+    EXCEPT(
+        SELECT a.DNI,a.apellido,a.Nombre,a.Legajo
+        FROM PERSONA p 
+        INNER JOIN ALUMNO a ON (p.DNI = a.DNI)
+        INNER JOIN ALUMNO-CURSO ac ON (a.DNI = ac.DNI)
+        WHERE(ac.Año = "2019")
+    )
 
 ~~~
 9. Agregar un profesor con los datos que prefiera y agregarle el título con código: 25.
 ~~~sql
 
+    INSERT INTO PERSONA(DNI,APELLIDO,Nombre,Fecha_Nacimiento,Estado_Civil,Genero)
+    VALUE("13123","Cirielli","Fraco","16/12/2002","Soltero")
+    INSERT INTO PROFESOR(DNI,Matricula,Nro_Expediente)
+    VALUE("13123","32132","3123")
+    INSERT INTO TITULO-PROFESOR(DNI,Cod_Titulo,Fecha)
+    VALUE("13123","1111111","05/06/2023")
    
     
 
@@ -659,42 +721,70 @@ conteniendo el string ‘BD’ durante 2018 pero no realizaron ningún curso dur
 divorciado.
 ~~~sql
 
-   
+   UPDATE PERSONA 
+   SET Estado_civil="divorciado" 
+   WHERE(
+        SELECT DNI 
+        FROM ALUMNO 
+        WHERE a.Legajo="2020/09"
+    )
     
 
 ~~~
 11. Dar de baja el alumno con DNI 30568989. Realizar todas las bajas necesarias para no
 dejar el conjunto de relaciones en estado inconsistente.
 ~~~sql
-
-   
-    
-
+    DELETE FROM PERSONA WHERE(DNI = "30568989")
+    DELETE FROM ALUMNO WHERE(DNI = "30568989")
+    DELETE FROM ALUMNO-CURSO WHERE(DNI = "30568989")
 ~~~
-Ejercicio 5:
-Localidad(CodigoPostal, nombreL, descripcion, #habitantes)
-Arbol(nroArbol, especie, años, calle, nro, codigoPostal(fk))
-Podador(DNI, nombre, apellido, telefono,fnac,codigoPostalVive(fk))
-Poda(codPoda,fecha, DNI(fk),nroArbol(fk))
-1. Listar especie, años, calle, nro. y localidad de árboles podados por el podador ‘Juan Perez’ y
-por el podador ‘Jose Garcia’.
-2. Reportar DNI, nombre, apellido, fnac y localidad donde viven podadores que tengan podas
-durante 2018.
-3. Listar especie, años, calle, nro y localidad de árboles que no fueron podados nunca.
-Página 3 de 9
-4. Reportar especie, años,calle, nro y localidad de árboles que fueron podados durante 2017 y
-no fueron podados durante 2018.
-5. Reportar DNI, nombre, apellido, fnac y localidad donde viven podadores con apellido
-terminado con el string ‘ata’ y que el podador tenga al menos una poda durante 2018.
-Ordenar por apellido y nombre.
-6. Listar DNI, apellido, nombre, teléfono y fecha de nacimiento de podadores que solo podaron
-árboles de especie ‘Coníferas’.
-7. Listar especie de árboles que se encuentren en la localidad de ‘La Plata’ y también en la
-localidad de ‘Salta’.
-8. Eliminar el podador con DNI: 22234566.
-9. Reportar nombre, descripción y cantidad de habitantes de localidades que tengan menos de
-100 árboles.
 
+Ejercicio 5:
+
+- Localidad(-CodigoPostal-, nombreL, descripcion, #habitantes)
+- Arbol(-nroArbol-, especie, años, calle, nro, codigoPostal(fk))
+- Podador(-DNI-, nombre, apellido, telefono,fnac,codigoPostalVive(fk))
+- Poda(-codPoda-,fecha, DNI(fk),nroArbol(fk))
+
+1. Listar especie, años, calle, nro. y localidad de árboles podados por el podador ‘Juan Perez’ y por el podador ‘Jose Garcia’.
+
+~~~sql
+    
+~~~
+
+2. Reportar DNI, nombre, apellido, fnac y localidad donde viven podadores que tengan podas durante 2018.
+~~~sql
+    
+~~~
+3. Listar especie, años, calle, nro y localidad de árboles que no fueron podados nunca.
+~~~sql
+    
+~~~
+
+4. Reportar especie, años,calle, nro y localidad de árboles que fueron podados durante 2017 y no fueron podados durante 2018.
+~~~sql
+    
+~~~
+5. Reportar DNI, nombre, apellido, fnac y localidad donde viven podadores con apellido terminado con el string ‘ata’ y que el podador tenga al menos una poda durante 2018. Ordenar por apellido y nombre.
+~~~sql
+    
+~~~
+6. Listar DNI, apellido, nombre, teléfono y fecha de nacimiento de podadores que solo podaron árboles de especie ‘Coníferas’.
+~~~sql
+    
+~~~
+7. Listar especie de árboles que se encuentren en la localidad de ‘La Plata’ y también en la localidad de ‘Salta’.
+~~~sql
+    
+~~~
+8. Eliminar el podador con DNI: 22234566.
+~~~sql
+    
+~~~
+9. Reportar nombre, descripción y cantidad de habitantes de localidades que tengan menos de 100 árboles.
+~~~sql
+    
+~~~
 
 Ejercicio 6:
 
