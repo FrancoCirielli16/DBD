@@ -268,7 +268,18 @@ Brandsen’
 
 ~~~sql
 
-    Select
+    SELECT c.DNI, c.nombre, c.apellido, c.teléfono, c.dirección
+    FROM VIAJE v 
+    INNER JOIN CLIENTE c ON (v.DNI = c.DNI)
+    INNER JOIN CIUDAD cd (v.cpDestino = c.cpDestino)
+    WHERE(cd.nombreCiudad = "Coronel Brandsen")
+    EXCEPT(
+        SELECT c.DNI, c.nombre, c.apellido, c.teléfono, c.dirección
+        FROM VIAJE v 
+        INNER JOIN CLIENTE c ON (v.DNI = c.DNI)
+        INNER JOIN CIUDAD cd (v.cpDestino = c.cpDestino)
+        WHERE NOT (cd.nombreCiudad = "Coronel Brandsen")
+    )
 
 ~~~
 
@@ -277,7 +288,11 @@ Brandsen’
 
 ~~~sql
 
-    Select
+    SELECT COUNT as "viajes"
+    FROM VIAJE v 
+    INNER JOIN CIUDAD c (v.cpDestino = c.cpDestino)
+    INNER JOIN AGENCIA a (a.RAZONSOCIAL = v.RAZONSOCIAL)
+    WHERE (a.RAZONSOCIAL = "TAXI Y" and c.nombreCiudad = "Villa Elisa")
 
 ~~~
 
@@ -285,25 +300,111 @@ Brandsen’
 
 
 ~~~sql
-
-    Select
+    /* OPCION QUE NO DEJA LA CATEDRA CREO*/
+    SELECT c.nombre, c.apellido, c.direccion, c.telefono
+    FROM Cliente c INNER JOIN Viaje v ON (c.DNI = v.DNI)
+    GROUP BY c.DNI, c.nombre, c.apellido, c.direccion, c.telefono
+    HAVING COUNT(DISTINCT v.RAZON_SOCIAL) = (SELECT COUNT(*) FROM AGENCIA);
 
 ~~~
+
+~~~sql
+
+    SELECT c.nombre, c.apellido, c.direccion, c.telefono
+    FROM Cliente c INNER JOIN Viaje v ON (c.DNI = v.DNI)
+    GROUP BY c.DNI, c.nombre, c.apellido, c.direccion, c.telefono
+    HAVING (SELECT COUNT(*) AS "cantidad razones unicas"
+    FROM (
+            SELECT RAZON_SOCIAL
+            FROM AGENCIA
+            GROUP BY RAZON_SOCIAL
+        ) /*ESTARIA TOMANDO TODAS LAS AGENCIAS EN LAS QUE VIAJO EL CLIENTE Y CONTANDOLA SIN QUE SE REPITAN*/ 
+    ) = (SELECT COUNT(*) FROM AGENCIA);
+
+~~~
+Tabla Cliente:
+
+| DNI | Nombre | Apellido | Dirección | Teléfono |
+|-----|--------|----------|-----------|----------|
+| 001 | Juan   | Pérez    | Calle A   | 12345678 |
+| 002 | María  | López    | Calle B   | 23456789 |
+| 003 | Pedro  | Gómez    | Calle C   | 34567890 |
+
+Tabla Agencia:
+
+| RAZON_SOCIAL | Nombre |
+|--------------|--------|
+| A1           | Agencia Uno |
+| A2           | Agencia Dos |
+| A3           | Agencia Tres |
+
+Tabla Viaje:
+
+| DNI | RAZON_SOCIAL |
+|-----|--------------|
+| 001 | A1           |
+| 001 | A2           |
+| 002 | A1           |
+| 002 | A2           |
+| 002 | A3           |
+| 003 | A1           |
+| 003 | A2           |
+| 003 | A3           |
+
+Primero, unimos las tablas Cliente y Viaje utilizando el DNI:
+
+| DNI | Nombre | Apellido | Dirección | Teléfono | RAZON_SOCIAL |
+|-----|--------|----------|-----------|----------|--------------|
+| 001 | Juan   | Pérez    | Calle A   | 12345678 | A1           |
+| 001 | Juan   | Pérez    | Calle A   | 12345678 | A2           |
+| 002 | María  | López    | Calle B   | 23456789 | A1           |
+| 002 | María  | López    | Calle B   | 23456789 | A2           |
+| 002 | María  | López    | Calle B   | 23456789 | A3           |
+| 003 | Pedro  | Gómez    | Calle C   | 34567890 | A1           |
+| 003 | Pedro  | Gómez    | Calle C   | 34567890 | A2           |
+| 003 | Pedro  | Gómez    | Calle C   | 34567890 | A3           |
+
+Luego, agrupamos por DNI y contamos el número de RAZON_SOCIAL distintos:
+
+
+| DNI | Nombre | Apellido | Dirección | Teléfono | COUNT(DISTINCT RAZON_SOCIAL) |
+|-----|--------|----------|-----------|----------|-----------------------------|
+| 001 | Juan   | Pérez    | Calle A   | 12345678 | 2                           |
+| 002 | María  | López    | Calle B   | 23456789 | 3                           |
+| 003 | Pedro  | Gómez    | Calle C   | 34567890 | 3                           |
+
+Finalmente, aplicamos el filtro HAVING para seleccionar solo aquellos clientes que hayan viajado con todas las agencias, es decir, que tengan un recuento de RAZON_SOCIAL igual al recuento total de agencias:
+
+
+| DNI | Nombre | Apellido | Dirección | Teléfono | COUNT(DISTINCT RAZON_SOCIAL) |
+|-----|--------|----------|-----------|----------|-----------------------------|
+| 002 | María  | López    | Calle B   | 23456789 | 3                           |
+| 003 | Pedro  | Gómez    | Calle C   | 34567890 | 3                           |
+
+
+
 
 7. Modificar el cliente con DNI: 38495444 actualizando el teléfono a: 221-4400897.
 
 ~~~sql
 
-    Select
+   UPDATE CLIENTE SET telefono = "221-4400897" WHERE DNI = "38495444"
 
 ~~~
 
-8. Listar razon_social, dirección y teléfono de la/s agencias que tengan mayor cantidad de
-viajes realizados.
+8. Listar razon_social, dirección y teléfono de la/s agencias que tengan mayor cantidad de viajes realizados.
 
 ~~~sql
 
-    Select
+    SELECT a.RAZONSOCIAL,a.direccion,a.telefono
+    FROM AGENCIA a INNER JOIN VIAJES v ON(a.RAZONSOCIAL = v.RAZONSOCIAL)
+    GROUP BY a.RAZONSOCIAL,a.direccion,a.telefono
+    HAVING (COUNT(*) >= ALL (
+        SELECT COUNT(*)  
+        FROM VIAJE v
+        GROUP BY v.RAZON_SOCIAL 
+        )
+    )
 
 ~~~
 
@@ -311,75 +412,265 @@ viajes realizados.
 
 ~~~sql
 
-    Select
+    SELECT c.nombre,c.apellido,c.direccion,c.telefono
+    FROM CLIENTE c INNER JOIN VIAJES v ON (c.DNI = v.DNI)
+    GROUP BY c.nombre,c.apellido,c.direccion,c.telefono
+    HAVING (COUNT(*) >= 10)
 
 ~~~
 10. Borrar al cliente con DNI 40325692.
 
+~~~sql
+
+    DELETE FROM CLIENTE WHERE DNI = "40325692"
+    DELETE FROM VIAJE WHERE DNI = "40325692"
+    
+
+~~~
 
 Ejericio 3:
 
-- Club=(codigoClub, nombre, anioFundacion, codigoCiudad(FK))
-- Ciudad=(codigoCiudad, nombre)
-- Estadio=(codigoEstadio, codigoClub(FK), nombre, direccion)
-- Jugador=(DNI, nombre, apellido, edad, codigoCiudad(FK))
--ClubJugador(codigoClub, DNI, desde, hasta)
+- Club=(-codigoClub-, nombre, anioFundacion, codigoCiudad(FK))
+- Ciudad=(-codigoCiudad-, nombre)
+- Estadio=(-codigoEstadio-, codigoClub(FK), nombre, direccion)
+- Jugador=(-DNI-, nombre, apellido, edad, codigoCiudad(FK))
+- ClubJugador(-codigoClub, DNI-, desde, hasta)
 
-1. Reportar nombre y anioFundacion de aquellos clubes de la ciudad de La Plata que no
-poseen estadio.
-2. Listar nombre de los clubes que no hayan tenido ni tengan jugadores de la ciudad de
-Berisso.
+1. Reportar nombre y anioFundacion de aquellos clubes de la ciudad de La Plata que no poseen estadio.  
+
+~~~sql
+
+    SELECT c.nombre,c.anioFundacion
+    FROM Club c LEFT JOIN Estadio e ON (c.codigoClub = e.codigoClub)
+    INNER JOIN Ciudad ciudad ON (c.codigoCiudad = ciudad.codigoCiudad)
+    WHERE (ciudad.nombre = "La Plata" AND e.codigoEstadio is NULL)
+
+~~~
+
+2. Listar nombre de los clubes que no hayan tenido ni tengan jugadores de la ciudad de Berisso.
+~~~sql
+
+    SELECT c.nombre
+    FROM Club c INNER JOIN ClubJugador cj ON (c.codigoClub = cj.codigoClub)
+    WHERE (cj.DNI NOT IN(
+        SELECT j.DNI
+        FROM Jugador j INNER JOIN Ciudad ciudad ON(j.codigoCiudad = ciudad.codigoCiudad)
+        WHERE(ciudad.nombre = "Berisso")
+        )
+    )
+    
+
+~~~
 3. Mostrar DNI, nombre y apellido de aquellos jugadores que jugaron o juegan en el club
 Gimnasia y Esgrima La PLata.
+~~~sql
+
+    SELECT j.DNI, j.nombre, j.apellido 
+    FROM Jugador j 
+    INNER JOIN ClubJugador cj ON (j.DNI = cj.DNI) 
+    INNER JOIN Club c ON (c.codigoClub = cj.codigoClub)
+    WHERE (c.nombre = "Gimnasia y Esgrima La Plata")
+    
+
+~~~
 4. Mostrar DNI, nombre y apellido de aquellos jugadores que tengan más de 29 años y
 hayan jugado o juegan en algún club de la ciudad de Córdoba.
+~~~sql
+
+    SELECT j.DNI, j.nombre, j.apellido 
+    FROM Jugador j INNER JOIN ClubJugador cj ON (j.DNI = cj.DNI)
+    INNER JOIN Club c ON (cj.codigoClub = c.codigoClub)
+    INNER JOIN Ciudad ciu ON (c.codigoCiudad = ciu.codigoCiudad)
+    WHERE j.edad > 29 AND ciu.nombre = "Cordoba"
+    
+
+~~~
 5. Mostrar para cada club, nombre de club y la edad promedio de los jugadores que juegan
 actualmente en cada uno.
+~~~sql
+
+    SELECT c.nombre, AVG(j.edad) as Promedio
+    FROM Club c 
+    LEFT JOIN ClubJugador cj ON (c.codigoClub = cj.codigoClub)
+    INNER JOIN Jugador j ON (cj.DNI = j.DNI)
+    WHERE cj.hasta IS NULL
+    GROUP BY c.codigoClub, c.nombre
+    
+
+~~~
 6. Listar para cada jugador: nombre, apellido, edad y cantidad de clubes diferentes en los
 que jugó. (incluido el actual)
+~~~sql
+
+   
+    SELECT j.nombre,j.apellido,j.edad,COUNT(*) as Cantidad
+    FROM Jugador j INNER JOIN ClubJugador cj ON (j.DNI = cj.DNI)
+    GROUP BY j.DNI,j.nombre,j.edad
+
+~~~
+
 7. Mostrar el nombre de los clubes que nunca hayan tenido jugadores de la ciudad de Mar
 del Plata.
+~~~sql
+
+    SELECT c.nombre
+    FROM Club club
+    INNER JOIN ClubJugador cj ON (c.codigoClub = cj.codigoClub)
+    INNER JOIN Jugador j ON(cj.DNI = j.DNI)
+    INNER JOIN Ciudad c ON (j.codigoCiudad = c.codigoCiudad)
+    EXCEPT(
+        FROM Club club
+        INNER JOIN ClubJugador cj ON (c.codigoClub = cj.codigoClub)
+        INNER JOIN Jugador j ON(cj.DNI = j.DNI)
+        INNER JOIN Ciudad c ON (j.codigoCiudad = c.codigoCiudad)
+        WHERE (c.nombre = "Mar del Plata")
+    )
+
+
+
+~~~
 8. Reportar el nombre y apellido de aquellos jugadores que hayan jugado en todos los
 clubes.
+~~~sql
+
+   SELECT j.nombre,j.apellido 
+   FROM Jugador j INNER JOIN ClubJugador cj ON (j.DNI = cj.DNI)
+   GROUP BY j.nombre,j.apellido
+   HAVING(
+        SELECT COUNT(*) AS "CantidadClubes"
+        FROM (
+            SELECT c.codigoClub
+            FROM Club c
+            GROUP BY c.codigoClub
+        ) 
+
+   ) = (SELECT COUNT(*) FROM Club)
+    
+
+~~~
 9. Agregar con codigoClub 1234 el club “Estrella de Berisso” que se fundó en 1921 y que
 pertenece a la ciudad de Berisso. Puede asumir que el codigoClub 1234 no existe en la
 tabla Club.
+~~~sql
 
+   
+    INSERT INTO Club(codigoClub,nombre,anioFundacion,CodigoCiudad(FK))
+    VALUES("1234","Estrella de Berisso","1921",(
+        SELECT codigoCiudad
+        FROM Ciudad
+        WHERE (nombre = "Berisso"))
+    )
+
+~~~
 
 Ejercicio 4:
 
-- PERSONA = (DNI, Apellido, Nombre, Fecha_Nacimiento, Estado_Civil, Genero)
-- ALUMNO = (DNI, Legajo, Año_Ingreso)
-- PROFESOR = (DNI, Matricula, Nro_Expediente)
-- TITULO = (Cod_Titulo, Nombre, Descripción)
-- TITULO-PROFESOR = (Cod_Titulo, DNI, Fecha)
-- CURSO = (Cod_Curso, Nombre, Descripción, Fecha_Creacion, Duracion)
-- ALUMNO-CURSO = (DNI, Cod_Curso, Año, Desempeño, Calificación)
-- PROFESOR-CURSO = (DNI, Cod_Curso, Fecha_Desde, Fecha_Hasta)
+- PERSONA = (-DNI-, Apellido, Nombre, Fecha_Nacimiento, Estado_Civil, Genero)
+- ALUMNO = (-DNI-, Legajo, Año_Ingreso)
+- PROFESOR = (-DNI-, Matricula, Nro_Expediente)
+- TITULO = (-Cod_Titulo-, Nombre, Descripción)
+- TITULO-PROFESOR = (-Cod_Titulo, DNI-, Fecha)
+- CURSO = (-Cod_Curso-, Nombre, Descripción, Fecha_Creacion, Duracion)
+- ALUMNO-CURSO = (-DNI, Cod_Curso, Año-, Desempeño, Calificación)
+- PROFESOR-CURSO = (-DNI, Cod_Curso, Fecha_Desde-, Fecha_Hasta)
 
 1. Listar DNI, legajo y apellido y nombre de todos los alumnos que tegan año ingreso
 inferior a 2014.
+~~~sql
+
+    SELECT a.DNI,a.legajo,p.apellido,p.nombre
+    FROM PERSONA p INNER JOIN ALUMNO a ON (p.DNI = a.DNI)
+    WHERE(a.Año_Ingreso < 2014)
+   
+    
+
+~~~
 2. Listar DNI, matricula, apellido y nombre de los profesores que dictan cursos que tengan
 más 100 horas de duración. Ordenar por DNI
+~~~sql
+
+   SELECT p.DNI,pro.matricula,p.apellido,p.nombre
+   FROM FROM PERSONA p INNER JOIN PROFESOR pro ON (p.DNI = pro.DNI)
+   INNER JOIN PROFESOR-CURSO pc ON (pro.DNI = pc.DNI)
+   INNER JOIN CURSO c ON (pc.Cod_Curso = c.Cod_Curso)
+   WHERE (c.Duracion a >= 100)
+   ORDER BY p.DNI
+    
+
+~~~
 3. Listar el DNI, Apellido, Nombre, Género y Fecha de nacimiento de los alumnos inscriptos
 al curso con nombre “Diseño de Bases de Datos” en 2019.
+~~~sql
+
+   
+    
+
+~~~
 4. Listar el DNI, Apellido, Nombre y Calificación de aquellos alumnos que obtuvieron una
 calificación superior a 9 en los cursos que dicta el profesor “Juan Garcia”. Dicho listado
 deberá estar ordenado por Apellido.
+~~~sql
+
+   
+    
+
+~~~
 5. Listar el DNI, Apellido, Nombre y Matrícula de aquellos profesores que posean más de 3
 títulos. Dicho listado deberá estar ordenado por Apellido y Nombre.
+~~~sql
+
+   
+    
+
+~~~
 6. Listar el DNI, Apellido, Nombre, Cantidad de horas y Promedio de horas que dicta cada
 profesor. La cantidad de horas se calcula como la suma de la duración de todos los
 cursos que dicta.
+~~~sql
+
+   
+    
+
+~~~
 7. Listar Nombre, Descripción del curso que posea más alumnos inscriptos y del que posea
 menos alumnos inscriptos durante 2019.
+~~~sql
+
+   
+    
+
+~~~
 8. Listar el DNI, Apellido, Nombre, Legajo de alumnos que realizaron cursos con nombre
 conteniendo el string ‘BD’ durante 2018 pero no realizaron ningún curso durante 2019.
+~~~sql
+
+   
+    
+
+~~~
 9. Agregar un profesor con los datos que prefiera y agregarle el título con código: 25.
+~~~sql
+
+   
+    
+
+~~~
 10. Modificar el estado civil del alumno cuyo legajo es ‘2020/09’, el nuevo estado civil es
 divorciado.
+~~~sql
+
+   
+    
+
+~~~
 11. Dar de baja el alumno con DNI 30568989. Realizar todas las bajas necesarias para no
 dejar el conjunto de relaciones en estado inconsistente.
+~~~sql
+
+   
+    
+
+~~~
 Ejercicio 5:
 Localidad(CodigoPostal, nombreL, descripcion, #habitantes)
 Arbol(nroArbol, especie, años, calle, nro, codigoPostal(fk))
