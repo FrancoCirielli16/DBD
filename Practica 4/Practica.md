@@ -504,12 +504,10 @@ que jugó. (incluido el actual)
 del Plata.
 ~~~sql
 
-    SELECT c.nombre
+    SELECT club.nombre
     FROM Club club
-    INNER JOIN ClubJugador cj ON (c.codigoClub = cj.codigoClub)
-    INNER JOIN Jugador j ON(cj.DNI = j.DNI)
-    INNER JOIN Ciudad c ON (j.codigoCiudad = c.codigoCiudad)
     EXCEPT(
+        SELECT club.nombre
         FROM Club club
         INNER JOIN ClubJugador cj ON (c.codigoClub = cj.codigoClub)
         INNER JOIN Jugador j ON(cj.DNI = j.DNI)
@@ -527,15 +525,7 @@ clubes.
    SELECT j.nombre,j.apellido 
    FROM Jugador j INNER JOIN ClubJugador cj ON (j.DNI = cj.DNI)
    GROUP BY j.nombre,j.apellido
-   HAVING(
-        SELECT COUNT(*) AS "CantidadClubes"
-        FROM (
-            SELECT c.codigoClub
-            FROM Club c
-            GROUP BY c.codigoClub
-        ) 
-
-   ) = (SELECT COUNT(*) FROM Club)
+   HAVING(DISTINCT c.codigoClub) = (SELECT COUNT(*) FROM Club)
     
 
 ~~~
